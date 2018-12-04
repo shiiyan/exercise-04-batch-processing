@@ -1,4 +1,7 @@
 namespace :my_task do
+	require 'net/smtp'
+	require_relative '../../config/gmail_key.rb' 
+
 	desc "Make a summary of `products` table and dump it into database"
 	task :summary => :environment do
 		summary = Summary.new
@@ -42,10 +45,34 @@ namespace :my_task do
 	  		summary.count_deleted = 0
 	  	end
 
-		if summary.save
-			puts "OK"
-		else
-			puts "Saving Failed"
+	  	#saves summary then sends out email
+	  	begin
+			summary.save
+
+			message = <<-MESSAGE_END
+From: Private Person <me@fromdomain.com>
+To: A Test User <test@todomain.com>
+Subject: Saving succeed
+
+OK
+MESSAGE_END
+		rescue Exception => e
+			# puts e.message
+			message = <<-MESSAGE_END
+From: Private Person <me@fromdomain.com>
+To: A Test User <test@todomain.com>
+Subject: Saving Failed
+
+#{e.message}
+MESSAGE_END
 		end
+
+		smtp = Net::SMTP.new 'smtp.gmail.com', 587
+		smtp.enable_starttls
+		smtp.start('MyDomain', '#{gmail_account}', '#{gmail_secret}', :login) do
+			smtp.send_message message, '#{gmail_account}', '#{gmail_account}'
+		end
+
 	end
+	
 end
